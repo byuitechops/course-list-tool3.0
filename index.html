@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <style>
+        #loading {
+            margin: 50px auto;
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: 5px dotted black;
+            animation: moving 5s infinite linear;
+        }
+
+        @keyframes moving {
+            0% {
+                transform: rotate(0);
+
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+    </style>
+</head>
+
+<body>
+    <div id="loading" hidden></div>
+    <button onclick="main()">Get Em Boys!</button>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-dsv/1.0.8/d3-dsv.min.js"></script>
+    <script src="https://localhost:8000/main.js"></script>
+</body>
+
+</html>
