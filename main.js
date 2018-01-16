@@ -154,8 +154,8 @@ function addDropdown(object){
     return select
 }
 
-var Courses,Bucket,Levels = [],Cache = false
 
+// Get the object that our current select boxess selections is implying
 function currentObject(){
     var next = {
         object: Bucket,
@@ -208,13 +208,6 @@ function onChange(select){
     }
 }
 
-async function main(){
-    Courses = await getCourses()
-    Bucket = bucketify(Courses)
-    updateDownloadLink(Courses,'AllCourses.csv')
-    addDropdown(Bucket)
-}
-
 function updateDownloadLink(data,fileName){ 
     var a = document.getElementById("download")
     a.removeAttribute('hidden')
@@ -226,4 +219,13 @@ function updateDownloadLink(data,fileName){
     
     a.href = url
     a.download = fileName
+}
+
+var Courses,Bucket,Levels = [],Cache = false
+
+async function main(){
+    Courses = await getCourses()
+    Bucket = bucketify(Courses)
+    updateDownloadLink(Courses,'AllCourses.csv')
+    addDropdown(Bucket)
 }
