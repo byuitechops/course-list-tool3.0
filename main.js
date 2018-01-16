@@ -1,3 +1,4 @@
+// My quick hacked together promise wrapper for xhttp requests
 class XHR{
     call(method,url,data){
         return new Promise((resolve,reject) => {
@@ -25,12 +26,16 @@ class XHR{
 }
 
 function startWaiting(){
+    // Show the loading circle
     document.getElementById('loading').removeAttribute('hidden')
+    // disable any inputs
     document.querySelectorAll('input').forEach(n => n.setAttribute('disabled',true))
 }
 
 function stopWaiting(){
+    // Hide the loading circle
     document.getElementById('loading').setAttribute('hidden',true)
+    // reable the inputs
     document.querySelectorAll('input').forEach(n => n.removeAttribute('disabled'))
 }
 
@@ -40,6 +45,7 @@ async function requestAllCourses(){
     var hasMoreItems = true
     var courses = []
     startWaiting()
+    
     while(hasMoreItems){
         var data = await xhr.get(`/d2l/api/lp/1.15/enrollments/myenrollments/?orgUnitTypeId=3${bookmark?'&Bookmark='+bookmark:''}`)
         
@@ -47,12 +53,15 @@ async function requestAllCourses(){
         hasMoreItems = data.PagingInfo.HasMoreItems
         
         data.Items.forEach(course => {
+            // I'm scraping just these 3 fields for simplicity,
+            // there are more that I don't understand
             courses.push({
                 code: course.OrgUnit.Code,
                 id: course.OrgUnit.Id,
                 name: course.OrgUnit.Name,
             })
         })
+        // Flood the console :)
         console.log(bookmark)
     }
     stopWaiting()
@@ -60,18 +69,23 @@ async function requestAllCourses(){
 }
 
 async function getCourses(){
-    var courses = localStorage.courses
-    if(!courses){
+    var courses
+    // If it is in localStorage we might as well use it
+    if(localStorage.courses){
+        courses = d3.csvParse(localStorage.courses)
+    } else {
+        // Get the courses
         courses = await requestAllCourses()
+        // If we are Caching, save in local storage
         if(Cache){
             localStorage.courses = d3.csvFormat(courses)
         }
-    } else {
-        courses = d3.csvParse(courses)
     }
     return courses
 }
 
+// Using the course codes as a template, create the implied object
+// Ex. "online.2017.spring" => {online: {2017: {spring: {}}}}
 function bucketify(courses){
     var bucket = {}
     courses.forEach(course => {
@@ -104,6 +118,7 @@ function bucketify(courses){
     return bucket
 }
 
+// Recursivly flattens the object, preping for csv
 function flatten(bucket,flattened){
     flattened = flattened || []
     if(bucket.data){
@@ -114,6 +129,8 @@ function flatten(bucket,flattened){
     return flattened
 }
 
+// Creates a dropdown containing the keys of the given object
+// And adds it to our global "Levels" array, and to the html
 function addDropdown(object){
     function createOption(value,shown){
         var option = document.createElement('option')
@@ -121,17 +138,17 @@ function addDropdown(object){
         option.innerHTML = shown
         return option
     }
-    
+    // Create the select box
     var select = document.createElement('select')
-    
+    // Add our attributes
     select.onchange = () => onChange(select)
     select['data-level'] = Levels.length
     select.appendChild(createOption("","--"))
-    
+    // Add our options
     Object.keys(object).sort().forEach(key => {
         select.appendChild(createOption(key,key))
     })
-    
+    // Adding to the html, and our "Levels"
     document.getElementById("selectsContainer").appendChild(select)
     Levels.push(select)
     return select
