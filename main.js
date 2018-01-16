@@ -63,7 +63,9 @@ async function getCourses(){
     var courses = localStorage.courses
     if(!courses){
         courses = await requestAllCourses()
-        localStorage.courses = d3.csvFormat(courses)
+        if(Cache){
+            localStorage.courses = d3.csvFormat(courses)
+        }
     } else {
         courses = d3.csvParse(courses)
     }
@@ -109,9 +111,10 @@ function flatten(bucket,flattened){
     } else {
         Object.keys(bucket).forEach(key => flatten(bucket[key],flattened))
     }
+    return flattened
 }
 
-function createDropdown(bucket){
+function addDropdown(object){
     function createOption(value,shown){
         var option = document.createElement('option')
         option.value = value
@@ -121,18 +124,83 @@ function createDropdown(bucket){
     
     var select = document.createElement('select')
     
+    select.onchange = () => onChange(select)
+    select['data-level'] = Levels.length
     select.appendChild(createOption("","--"))
     
-    Object.keys(bucket).forEach(key => {
+    Object.keys(object).sort().forEach(key => {
         select.appendChild(createOption(key,key))
     })
     
+    document.getElementById("selectsContainer").appendChild(select)
+    Levels.push(select)
     return select
 }
 
-function createDownloadLink(data,fileName){ 
-    var a = document.createElement("a")
-    document.body.appendChild(a)
+var Courses,Bucket,Levels = [],Cache = false
+
+function currentObject(){
+    var next = {
+        object: Bucket,
+        path: []
+    }
+    for(var i = 0; i < Levels.length; i ++){
+        let level = Levels[i]
+        
+        var currentSelection = level.options[level.selectedIndex].value
+        if(currentSelection){
+            next.path.push(currentSelection)
+            next.object = next.object[currentSelection]
+        } else {
+            return next
+        }
+    }
+    return next
+}
+
+function onChange(select){
+    // Delete everything after this one
+    Levels.splice(select["data-level"]+1).forEach(sel => sel.parentNode.removeChild(sel))
+    document.querySelector('#data').setAttribute('hidden',true)
+    
+    // If set a value
+    var value = select.options[select.selectedIndex].value
+    var next = currentObject()
+    if(value){
+        // If there are more children after this
+        if(!next.object.data){
+            // Add the next dropdown
+            addDropdown(next.object)
+        } else {
+        // Else display data
+            console.log(next.object.data)
+            document.querySelector('#code span').innerHTML = next.object.data.code
+            document.querySelector('#id span').innerHTML = next.object.data.id
+            document.querySelector('#name span').innerHTML = next.object.data.name
+            document.querySelector('#data').removeAttribute('hidden')
+        }
+    }
+    
+    // update the link
+    if(next.path.length){
+        var data = flatten(next.object)
+        var name = next.path.join('.')+".csv"
+        updateDownloadLink(data,name)
+    } else {
+        updateDownloadLink(Courses,'AllCourses.csv')
+    }
+}
+
+async function main(){
+    Courses = await getCourses()
+    Bucket = bucketify(Courses)
+    updateDownloadLink(Courses,'AllCourses.csv')
+    addDropdown(Bucket)
+}
+
+function updateDownloadLink(data,fileName){ 
+    var a = document.getElementById("download")
+    a.removeAttribute('hidden')
     a.innerHTML = fileName
     
     var csv = d3.csvFormat(data)
@@ -141,12 +209,4 @@ function createDownloadLink(data,fileName){
     
     a.href = url
     a.download = fileName
-}
-
-async function main(){
-    var courses = await getCourses()
-    var bucket = bucketify(courses)
-    console.log(bucket)
-    document.body.appendChild(createDropdown(bucket))
-    document.body.appendChild(createDropdown(bucket["Online"]))
 }
