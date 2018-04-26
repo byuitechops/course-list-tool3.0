@@ -26,10 +26,21 @@ class XHR{
 }
 
 function startWaiting(){
-    // Show the loading circle
-    document.getElementById('loading').removeAttribute('hidden')
     // disable any inputs
     document.querySelectorAll('input').forEach(n => n.setAttribute('disabled',true))
+
+    $('#loading').html(`
+    <div class="bar">
+        <div class="progress"></div>
+    </div>
+    <div class="label"></div>
+    `)
+
+    $('#loading').progress({
+        total: 300
+    })
+
+    $('#update').addClass('disabled')
 }
 
 function stopWaiting(){
@@ -37,6 +48,12 @@ function stopWaiting(){
     document.getElementById('loading').setAttribute('hidden',true)
     // reable the inputs
     document.querySelectorAll('input').forEach(n => n.removeAttribute('disabled'))
+    
+    // $('#loading').progress('set success')
+    // $('#loading').progress('remove active')
+    $('#loading').children().remove()
+
+    $('#update').removeClass('disabled')
 }
 
 async function requestAllCourses(){
@@ -49,6 +66,7 @@ async function requestAllCourses(){
     while(hasMoreItems){
         var data = await xhr.get(`/d2l/api/lp/1.15/enrollments/myenrollments/?orgUnitTypeId=3${bookmark?'&Bookmark='+bookmark:''}`)
         
+        $('#loading').progress('increment')
         bookmark = data.PagingInfo.Bookmark
         hasMoreItems = data.PagingInfo.HasMoreItems
         
@@ -60,27 +78,10 @@ async function requestAllCourses(){
                 id: course.OrgUnit.Id,
                 name: course.OrgUnit.Name,
             })
+
         })
-        // Flood the console :)
-        console.log(bookmark)
     }
     stopWaiting()
-    return courses
-}
-
-async function getCourses(){
-    var courses
-    // If it is in localStorage we might as well use it
-    if(localStorage.courses){
-        courses = d3.csvParse(localStorage.courses)
-    } else {
-        // Get the courses
-        courses = await requestAllCourses()
-        // If we are Caching, save in local storage
-        if(Cache){
-            localStorage.courses = d3.csvFormat(courses)
-        }
-    }
     return courses
 }
 
@@ -94,7 +95,7 @@ function bucketify(courses){
         // Interpreting the course code format as a nested object structure
         var sections = course.code.split('.')
         // Scraping everthing that dosen't start with these
-        if(["Bridged - Online","Online","Campus"].includes(sections[0])){
+        // if(["Pathway","Bridged - Online","Online","Campus"].includes(sections[0])){
             // go through each section putting it into the right buckets
             sections.forEach(section => {
                 // if it doesen't already exist add our data
@@ -102,7 +103,7 @@ function bucketify(courses){
                 // Move down a level
                 level = level[section]
             })
-        }
+        // }
     })
     
     // need to remove the data attributes that are not on leaf nodes
@@ -142,6 +143,7 @@ function addDropdown(object){
     var select = document.createElement('select')
     // Add our attributes
     select.onchange = () => onChange(select)
+    select.classList.add('ui','dropdown')
     select['data-level'] = Levels.length
     select.appendChild(createOption("","--"))
     // Add our options
@@ -178,8 +180,9 @@ function currentObject(){
 function onChange(select){
     // Delete everything after this one
     Levels.splice(select["data-level"]+1).forEach(sel => sel.parentNode.removeChild(sel))
-    document.querySelector('#data').setAttribute('hidden',true)
-    
+    // Clear the search cause they ain't using it
+    document.querySelector('#search').value = ""
+
     // If set a value
     var value = select.options[select.selectedIndex].value
     var next = currentObject()
@@ -188,27 +191,38 @@ function onChange(select){
         if(!next.object.data){
             // Add the next dropdown
             addDropdown(next.object)
-        } else {
-        // Else display data
-            console.log(next.object.data)
-            document.querySelector('#code span').innerHTML = next.object.data.code
-            document.querySelector('#id span').innerHTML = next.object.data.id
-            document.querySelector('#name span').innerHTML = next.object.data.name
-            document.querySelector('#data').removeAttribute('hidden')
         }
     }
     
     // update the link
     if(next.path.length){
         var data = flatten(next.object)
-        var name = next.path.join('.')+".csv"
+        var name = next.path.join('.')
         updateDownloadLink(data,name)
+        updateTable(data)
     } else {
-        updateDownloadLink(Courses,'AllCourses.csv')
+        updateDownloadLink(Courses,'AllCourses')
+        updateTable(Courses)
+    }
+}
+
+function updateTable(courses){
+    $('#tableBody').children().remove()
+
+    document.querySelector('#data').removeAttribute('hidden')
+
+    console.log(courses.length)
+    courses.slice(0,5).forEach(course => {
+        $('#tableBody').append(`<tr><td>${course.code}</td><td>${course.id}</td><td>${course.name}</td></tr>`)
+    })
+    if(courses.length > 5){
+        $('#tableBody').append(`<i class="ellipsis vertical icon"></i>`)
     }
 }
 
 function updateDownloadLink(data,fileName){ 
+    fileName = fileName.replace(/\W/g,'')+'.csv'
+
     var a = document.getElementById("download")
     a.removeAttribute('hidden')
     a.innerHTML = fileName
@@ -221,11 +235,49 @@ function updateDownloadLink(data,fileName){
     a.download = fileName
 }
 
-var Courses,Bucket,Levels = [],Cache = false
+var Courses,Bucket,Levels,StorageKey = "byui-courselist"
 
-async function main(){
-    Courses = await getCourses()
-    Bucket = bucketify(Courses)
-    updateDownloadLink(Courses,'AllCourses.csv')
-    addDropdown(Bucket)
+/* 
+* Two different places to start, either by firing get courses when you click the update button
+* Or automatically on page load if it is already in the cache
+*/
+async function getCourses(){
+    // Get the courses
+    Courses = await requestAllCourses()
+    // Cache the result
+    localStorage[StorageKey] = d3.csvFormat(Courses)
+    setUp()
+}
+
+window.onload = function(){
+    // If it is in our cache
+    if(localStorage[StorageKey]){
+        Courses = d3.csvParse(localStorage[StorageKey])
+        setUp()
+    }
+}
+
+document.querySelector('#search').onchange = function(e){
+    var search = e.target.value
+    var filteredList = Courses.filter(c => c.code.match(new RegExp(search,'i')))
+    updateTable(filteredList)
+    updateDownloadLink(filteredList,`(${search})`)
+}
+
+
+/* Just takes the courses and updates the other components */
+function setUp() {
+    if(!Courses){
+        throw new Error("tried to set up before I got the courses")
+    }
+    // Reset my boxes
+    Levels = []
+    $('#selectsContainer').children().remove()
+    $('#update').text('Update Courses')
+    document.querySelector('#picker').removeAttribute('hidden')
+    
+    Bucket = bucketify(Courses);
+    updateDownloadLink(Courses, 'AllCourses');
+    addDropdown(Bucket);
+    
 }

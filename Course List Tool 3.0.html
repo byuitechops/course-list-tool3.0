@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <style>
+        /* #loading {
+            margin: 50px auto;
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: 5px dotted black;
+            animation: moving 5s infinite linear;
+        }
+
+        @keyframes moving {
+            0% {
+                transform: rotate(0);
+
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        } */
+        #data > p > span{
+            color:rebeccapurple
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.14/semantic.min.css" />
+</head>
+
+<body>
+    <div class="ui container">
+        <h1 class="ui header">Course List Tool 3.0</h1>
+        <div class="ui progress" id="loading" hidden="true"></div>
+        
+        <div class="ui segment" hidden="true" id="picker">
+            
+            <h3 class="ui header">Search by Structure</h3>
+            <div id="selectsContainer"></div>
+            <div class="ui horizontal divider">OR</div>
+            <h3 class="ui header">Search by RegEx</h3>
+            <div class="ui input" id="search">
+                <input type="text" placeholder="Search...">
+            </div>
+            
+            <div id="data" class="ui secondary segment" hidden="true">
+                <h3 class="ui grey header">Example CSV</h3>
+                <table class="ui very basic collapsing celled table">
+                    <thead>
+                        <tr><th>code</th><th>id</th><th>name</th></tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+            <h4 class="ui header">
+                <img class="ui image" src="https://s.brightspace.com/lib/bsi/10.7.11-daylight.14/images/tier1/download.svg"></img>
+                <div class="content">
+                    Download
+                    <a id="download" class="sub header"></a>
+                </div>
+            </h4>
+        </div>
+
+        <button class="ui button" id="update" onclick="getCourses()">Get Courses</button>
+        
+        <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E=" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.14/semantic.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-dsv/1.0.8/d3-dsv.min.js"></script>
+        <script src="main.js"></script>
+    </div>
+</body>
+</html>
